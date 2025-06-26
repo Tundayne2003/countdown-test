@@ -1,4 +1,5 @@
 // server.js - Đã được cập nhật với nền tùy chỉnh và chữ đen
+require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
@@ -7,6 +8,43 @@ const GIFEncoder = require('gif-encoder-2');
 const { parseISO, differenceInSeconds } = require('date-fns');
 
 const app = express();
+
+// === CÀI ĐẶT SENDGRID ===
+// Lấy API key từ Environment Variable trên Vercel một cách an toàn
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); // <-- ĐÚNG!
+
+// Middleware để Express có thể đọc được JSON từ body của request
+app.use(express.json());
+
+
+// === API GỬI EMAIL MỚI ===
+app.post('/api/send-email', async (req, res) => {
+    // Lấy thông tin từ request của frontend
+    const { to_email, message_html } = req.body;
+
+    if (!to_email || !message_html) {
+        return res.status(400).json({ error: 'Thiếu email người nhận hoặc nội dung.' });
+    }
+
+    const msg = {
+        to: to_email,
+        // !!! QUAN TRỌNG: Thay thế bằng địa chỉ email bạn đã xác thực trên SendGrid
+        from: 'hahuytuan033@gmail.com', 
+        subject: 'Thư mời tham gia sự kiện đặc biệt!',
+        html: message_html,
+    };
+
+    try {
+        await sgMail.send(msg);
+        res.status(200).json({ message: 'Email đã được gửi thành công!' });
+    } catch (error) {
+        console.error('LỖI SENDGRID:', error);
+        if (error.response) {
+            console.error(error.response.body);
+        }
+        res.status(500).json({ error: 'Gửi email thất bại.' });
+    }
+});
 
 // Đăng ký font chữ tùy chỉnh để đảm bảo hiển thị đúng trên server
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
