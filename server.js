@@ -49,7 +49,7 @@ app.get('/api/countdown.gif', (req, res) => {
         const colors = {
             text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#000000', // Màu số: Đen
             label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#000000', // Màu nhãn: Đen
-            bg:        hexColorRegex.test(bgcolor) ? `#${bgcolor}` : null,       // Màu nền: Mặc định là trong suốt (null)
+            bg:        hexColorRegex.test(bgcolor) ? `#${bgcolor}` : '#ffffff',       // Màu nền: Mặc định là trong suốt (null)
         };
 
         const width = 360;
