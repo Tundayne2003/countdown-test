@@ -37,12 +37,10 @@ app.get('/api/countdown.gif', (req, res) => {
         const targetDate = parseISO(time);
         if (isNaN(targetDate.getTime())) return res.status(400).send('Định dạng "time" không hợp lệ.');
         
-        // Xử lý duration, mặc định là 5 giây nếu không có.
-        // Giới hạn 10 giây để tránh timeout trên Vercel.
         let gifDuration = parseInt(duration, 10);
         if (isNaN(gifDuration) || gifDuration < 1) {
             gifDuration = 5; 
-        } else if (gifDuration > 10) { // Giới hạn quan trọng
+        } else if (gifDuration > 10) {
             gifDuration = 10;
         }
 
@@ -54,8 +52,9 @@ app.get('/api/countdown.gif', (req, res) => {
             label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#a9c1e1',
         };
 
-        const width = 450;
-        const height = 120;
+        // === THAY ĐỔI KÍCH THƯỚC: Thu nhỏ kích thước ảnh và các yếu tố ===
+        const width = 360;  // Giảm từ 450
+        const height = 96; // Giảm từ 120
         res.setHeader('Content-Type', 'image/gif');
 
         const encoder = new GIFEncoder(width, height);
@@ -71,7 +70,6 @@ app.get('/api/countdown.gif', (req, res) => {
         const now = new Date();
         const initialSecondsLeft = differenceInSeconds(targetDate, now);
         
-        // Sử dụng vòng lặp để tạo ra nhiều khung hình
         const numberOfFrames = gifDuration; 
 
         for (let i = 0; i < numberOfFrames; i++) {
@@ -91,9 +89,10 @@ app.get('/api/countdown.gif', (req, res) => {
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, width, height);
 
-            const boxWidth = 80;
-            const boxHeight = 80;
-            const gap = 20;
+            // Cập nhật lại kích thước và khoảng cách của các khối
+            const boxWidth = 64;    // Giảm từ 80
+            const boxHeight = 64;   // Giảm từ 80
+            const gap = 16;         // Giảm từ 20
             const totalContentWidth = (4 * boxWidth) + (3 * gap);
             const startX = (width - totalContentWidth) / 2;
             const startY = (height - boxHeight) / 2;
@@ -102,22 +101,24 @@ app.get('/api/countdown.gif', (req, res) => {
 
             for (const [label, value] of Object.entries(timeUnits)) {
                 ctx.fillStyle = colors.box;
-                drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 10);
+                drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 8); // Giảm bán kính bo góc
                 
                 ctx.fillStyle = colors.text;
-                ctx.font = 'bold 36px Roboto';
+                // Cập nhật lại kích thước font
+                ctx.font = 'bold 28px Roboto'; // Giảm từ 36px
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 10);
+                // Cập nhật lại vị trí tương đối của văn bản
+                ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 8);
 
                 ctx.fillStyle = colors.label;
-                ctx.font = 'normal 14px Roboto';
-                ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 25);
+                // Cập nhật lại kích thước font
+                ctx.font = 'normal 12px Roboto'; // Giảm từ 14px
+                ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 22);
 
                 currentX += boxWidth + gap;
             }
 
-            // Thêm khung hình đã vẽ vào GIF
             encoder.addFrame(ctx);
         }
 
