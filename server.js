@@ -1,4 +1,4 @@
-// server.js - Giao diện được nâng cấp và có thể tùy chỉnh
+// server.js - Đã được chỉnh sửa để tương thích với Vercel
 
 import express from 'express';
 import { createCanvas } from 'canvas';
@@ -6,6 +6,7 @@ import GIFEncoder from 'gif-encoder-2';
 import { parseISO, differenceInSeconds } from 'date-fns';
 
 const app = express();
+// Dòng PORT sẽ không còn được sử dụng khi deploy lên Vercel, nhưng có thể giữ lại để test local
 const PORT = process.env.PORT || 3000;
 
 // === HÀM HỖ TRỢ VẼ HÌNH CHỮ NHẬT BO GÓC ===
@@ -122,18 +123,7 @@ app.get('/api/countdown.gif', (req, res) => {
     encoder.finish();
 });
 
-// URL ví dụ được cập nhật để trình diễn giao diện mới và các tham số màu
-const testDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
-const isoTime = testDate.toISOString();
-
-app.listen(PORT, () => {
-    console.log(`Server tạo ảnh GIF ĐỘNG (demo) đang chạy.`);
-    console.log(`\n🎨 Giao diện mặc định (10 giây):`);
-    console.log(`http://localhost:${PORT}/api/countdown.gif?time=${isoTime}&duration=10`);
-
-    console.log(`\n🎨 Giao diện tông màu Nóng (Cam/Đỏ):`);
-    console.log(`http://localhost:${PORT}/api/countdown.gif?time=${isoTime}&duration=10&bg1=4a0e0e&bg2=8e2f17&boxcolor=c2482a&textcolor=ffffff&labelcolor=fdd3c9`);
-
-    console.log(`\n🎨 Giao diện tông màu Xanh lá:`);
-    console.log(`http://localhost:${PORT}/api/countdown.gif?time=${isoTime}&duration=10&bg1=032b13&bg2=0f522e&boxcolor=1a7d49&textcolor=ffffff&labelcolor=b6e6ce`);
-});
+// === PHẦN ĐÃ BỊ XÓA BỎ HOẶC CHỈNH SỬA ===
+// Khối app.listen đã bị xóa.
+// Thay vào đó, chúng ta export app để Vercel có thể sử dụng.
+export default app;
