@@ -1,13 +1,26 @@
-// server.js - Đã được chỉnh sửa để tương thích với Vercel và thêm try-catch
+// server.js - Đã đổi sang font Roboto
 
 import express from 'express';
-import { createCanvas } from 'canvas';
+// Thêm các module cần thiết để xử lý đường dẫn file
+import path from 'path';
+import { fileURLToPath } from 'url';
+// Thêm hàm registerFont từ canvas
+import { createCanvas, registerFont } from 'canvas';
 import GIFEncoder from 'gif-encoder-2';
 import { parseISO, differenceInSeconds } from 'date-fns';
 
 const app = express();
 
-// === HÀM HỖ TRỢ VẼ HÌNH CHỮ NHẬT BO GÓC ===
+// === CÀI ĐẶT ĐƯỜNG DẪN ĐỂ TÌM FILE FONT ===
+// Cần thiết để server biết vị trí thư mục 'fonts'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// === ĐĂNG KÝ FONT CHỮ "ROBOTO" TRƯỚC KHI SỬ DỤNG ===
+// Server sẽ load các font này vào bộ nhớ để chuẩn bị vẽ
+registerFont(path.join(__dirname, 'fonts', 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
+registerFont(path.join(__dirname, 'fonts', 'Roboto-Regular.ttf'), { family: 'Roboto', weight: 'normal' });
+
 function drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -25,11 +38,9 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 
 app.get('/api/countdown.gif', (req, res) => {
     try {
-        // === 1. LẤY VÀ XỬ LÝ TẤT CẢ THAM SỐ TỪ URL ===
         const { time, duration, bg1, bg2, boxcolor, textcolor, labelcolor } = req.query;
         const hexColorRegex = /^[0-9a-fA-F]{6}$/;
 
-        // Xử lý tham số 'time' và 'duration'
         if (!time) return res.status(400).send('Thiếu tham số "time".');
         const targetDate = parseISO(time);
         if (isNaN(targetDate.getTime())) return res.status(400).send('Định dạng "time" không hợp lệ.');
@@ -37,16 +48,14 @@ app.get('/api/countdown.gif', (req, res) => {
         if (isNaN(gifDuration) || gifDuration < 1) gifDuration = 5;
         if (gifDuration > 60) gifDuration = 60;
 
-        // Xử lý các tham số màu sắc với giá trị mặc định nếu không được cung cấp hoặc không hợp lệ
         const colors = {
-            bg1:       hexColorRegex.test(bg1) ? `#${bg1}` : '#0b1226',        // Màu nền bắt đầu: Xanh đen đậm
-            bg2:       hexColorRegex.test(bg2) ? `#${bg2}` : '#1e3050',        // Màu nền kết thúc: Xanh navy
-            box:       hexColorRegex.test(boxcolor) ? `#${boxcolor}` : '#134074',  // Màu khối: Xanh biển đậm
-            text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#FFFFFF',    // Màu số: Trắng
-            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#a9c1e1', // Màu nhãn: Xanh nhạt
+            bg1:       hexColorRegex.test(bg1) ? `#${bg1}` : '#0b1226',
+            bg2:       hexColorRegex.test(bg2) ? `#${bg2}` : '#1e3050',
+            box:       hexColorRegex.test(boxcolor) ? `#${boxcolor}` : '#134074',
+            text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#FFFFFF',
+            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#a9c1e1',
         };
 
-        // === 2. CÀI ĐẶT CANVAS VÀ GIF ENCODER ===
         const width = 450;
         const height = 120;
         res.setHeader('Content-Type', 'image/gif');
@@ -74,7 +83,6 @@ app.get('/api/countdown.gif', (req, res) => {
                 Giây: currentFrameSeconds % 60,
             };
 
-            // === 3. BẮT ĐẦU VẼ GIAO DIỆN MỚI ===
             const gradient = ctx.createLinearGradient(0, 0, 0, height);
             gradient.addColorStop(0, colors.bg1);
             gradient.addColorStop(1, colors.bg2);
@@ -95,13 +103,15 @@ app.get('/api/countdown.gif', (req, res) => {
                 drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 10);
                 
                 ctx.fillStyle = colors.text;
-                ctx.font = 'bold 36px Arial';
+                // === SỬ DỤNG FONT "ROBOTO" ĐÃ ĐĂNG KÝ ===
+                ctx.font = 'bold 36px Roboto';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 10);
 
                 ctx.fillStyle = colors.label;
-                ctx.font = '14px Arial';
+                // === SỬ DỤNG FONT "ROBOTO" ĐÃ ĐĂNG KÝ ===
+                ctx.font = 'normal 14px Roboto';
                 ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 25);
 
                 currentX += boxWidth + gap;
@@ -113,12 +123,9 @@ app.get('/api/countdown.gif', (req, res) => {
         encoder.finish();
 
     } catch (error) {
-        // Ghi lại lỗi ra console của Vercel để debug
         console.error("Đã xảy ra lỗi khi tạo ảnh GIF:", error);
-        // Trả về lỗi 500 cho người dùng
         res.status(500).send('Lỗi máy chủ nội bộ khi tạo ảnh.');
     }
 });
 
-// Export ứng dụng Express để Vercel có thể sử dụng.
 export default app;
