@@ -1,5 +1,4 @@
-// server.js - Đã được cập nhật với nền tùy chỉnh và chữ đen
-require('dotenv').config();
+// server.js - Đã cải tiến việc ghi log lỗi để dễ dàng gỡ lỗi
 
 const express = require('express');
 const path = require('path');
@@ -11,16 +10,13 @@ const sgMail = require('@sendgrid/mail');
 const app = express();
 
 // === CÀI ĐẶT SENDGRID ===
-// Lấy API key từ Environment Variable trên Vercel một cách an toàn
-sgMail.setApiKey(process.env.SENDGRID_API_KEY); // <-- ĐÚNG!
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Middleware để Express có thể đọc được JSON từ body của request
 app.use(express.json());
 
 
 // === API GỬI EMAIL MỚI ===
 app.post('/api/send-email', async (req, res) => {
-    // Lấy thông tin từ request của frontend
     const { to_email, message_html } = req.body;
 
     if (!to_email || !message_html) {
@@ -29,7 +25,7 @@ app.post('/api/send-email', async (req, res) => {
 
     const msg = {
         to: to_email,
-        // !!! QUAN TRỌNG: Thay thế bằng địa chỉ email bạn đã xác thực trên SendGrid
+        // Đảm bảo email này đã được xác thực (verified) trong SendGrid
         from: 'hahuytuan033@gmail.com', 
         subject: 'Thư mời tham gia sự kiện đặc biệt!',
         html: message_html,
@@ -39,19 +35,24 @@ app.post('/api/send-email', async (req, res) => {
         await sgMail.send(msg);
         res.status(200).json({ message: 'Email đã được gửi thành công!' });
     } catch (error) {
-        console.error('LỖI SENDGRID:', error);
+        // === CẢI TIẾN LOG LỖI ===
+        // Ghi lại lỗi một cách chi tiết hơn vào log của Vercel
+        console.error('LỖI GỐC TỪ SENDGRID:', error);
+
+        // Nếu có phản hồi từ API của SendGrid, hãy in ra chi tiết
         if (error.response) {
-            console.error(error.response.body);
+            console.error('CHI TIẾT LỖI:', JSON.stringify(error.response.body.errors, null, 2));
         }
-        res.status(500).json({ error: 'Gửi email thất bại.' });
+        
+        res.status(500).json({ error: 'Gửi email thất bại. Vui lòng kiểm tra log trên Vercel để biết chi tiết.' });
     }
 });
 
-// Đăng ký font chữ tùy chỉnh để đảm bảo hiển thị đúng trên server
+
+// === API TẠO ẢNH GIF (Không thay đổi) ===
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Regular.ttf'), { family: 'Roboto', weight: 'normal' });
 
-// Hàm này không còn được sử dụng khi nền trong suốt nhưng giữ lại để có thể dùng sau
 function drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -69,7 +70,6 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 
 app.get('/api/countdown.gif', (req, res) => {
     try {
-        // Thêm tham số bgcolor và dọn dẹp các tham số không dùng
         const { time, duration, textcolor, labelcolor, bgcolor } = req.query;
         const hexColorRegex = /^[0-9a-fA-F]{6}$/;
 
@@ -84,11 +84,10 @@ app.get('/api/countdown.gif', (req, res) => {
             gifDuration = 10;
         }
 
-        // Cập nhật lại màu mặc định
         const colors = {
-            text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#000000', // Màu số: Đen
-            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#000000', // Màu nhãn: Đen
-            bg:        hexColorRegex.test(bgcolor) ? `#${bgcolor}` : '#ffffff',       // Màu nền: Mặc định là trong suốt (null)
+            text:       hexColorRegex.test(textcolor) ? `#${textcolor}` : '#000000',
+            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#000000',
+            bg:        hexColorRegex.test(bgcolor) ? `#${bgcolor}` : null,
         };
 
         const width = 360;
@@ -121,13 +120,10 @@ app.get('/api/countdown.gif', (req, res) => {
                 Giây: currentFrameSeconds % 60,
             };
 
-            // === THAY ĐỔI: Xóa canvas để có nền trong suốt hoặc tô màu nền ===
             if (colors.bg) {
-                // Nếu có tham số bgcolor, tô màu nền
                 ctx.fillStyle = colors.bg;
                 ctx.fillRect(0, 0, width, height);
             } else {
-                // Nếu không, xóa nền để có nền trong suốt
                 ctx.clearRect(0, 0, width, height);
             }
 
@@ -141,7 +137,6 @@ app.get('/api/countdown.gif', (req, res) => {
             let currentX = startX;
 
             for (const [label, value] of Object.entries(timeUnits)) {
-                // Không vẽ khối nền nữa
                 
                 ctx.fillStyle = colors.text;
                 ctx.font = 'bold 28px Roboto';
