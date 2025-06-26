@@ -1,4 +1,4 @@
-// server.js - Đã được chỉnh sửa để có nền trong suốt và chữ đen
+// server.js - Đã được cập nhật với nền tùy chỉnh và chữ đen
 
 const express = require('express');
 const path = require('path');
@@ -30,8 +30,8 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 
 app.get('/api/countdown.gif', (req, res) => {
     try {
-        // Loại bỏ các tham số màu không còn cần thiết
-        const { time, duration, textcolor, labelcolor } = req.query;
+        // Thêm tham số bgcolor và dọn dẹp các tham số không dùng
+        const { time, duration, textcolor, labelcolor, bgcolor } = req.query;
         const hexColorRegex = /^[0-9a-fA-F]{6}$/;
 
         if (!time) return res.status(400).send('Thiếu tham số "time".');
@@ -48,7 +48,8 @@ app.get('/api/countdown.gif', (req, res) => {
         // Cập nhật lại màu mặc định
         const colors = {
             text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#000000', // Màu số: Đen
-            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#333333', // Màu nhãn: Xám đậm
+            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#000000', // Màu nhãn: Đen
+            bg:        hexColorRegex.test(bgcolor) ? `#${bgcolor}` : null,       // Màu nền: Mặc định là trong suốt (null)
         };
 
         const width = 360;
@@ -81,8 +82,15 @@ app.get('/api/countdown.gif', (req, res) => {
                 Giây: currentFrameSeconds % 60,
             };
 
-            // === THAY ĐỔI: Xóa canvas để có nền trong suốt ===
-            ctx.clearRect(0, 0, width, height);
+            // === THAY ĐỔI: Xóa canvas để có nền trong suốt hoặc tô màu nền ===
+            if (colors.bg) {
+                // Nếu có tham số bgcolor, tô màu nền
+                ctx.fillStyle = colors.bg;
+                ctx.fillRect(0, 0, width, height);
+            } else {
+                // Nếu không, xóa nền để có nền trong suốt
+                ctx.clearRect(0, 0, width, height);
+            }
 
             const boxWidth = 64;
             const boxHeight = 64;
@@ -94,9 +102,7 @@ app.get('/api/countdown.gif', (req, res) => {
             let currentX = startX;
 
             for (const [label, value] of Object.entries(timeUnits)) {
-                // === THAY ĐỔI: Không vẽ khối nền nữa ===
-                // ctx.fillStyle = colors.box;
-                // drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 8);
+                // Không vẽ khối nền nữa
                 
                 ctx.fillStyle = colors.text;
                 ctx.font = 'bold 28px Roboto';
