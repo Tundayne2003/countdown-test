@@ -6,6 +6,7 @@ const path = require('path');
 const { createCanvas, registerFont } = require('canvas');
 const GIFEncoder = require('gif-encoder-2');
 const { parseISO, differenceInSeconds } = require('date-fns');
+const sgMail = require('@sendgrid/mail');
 
 const app = express();
 
