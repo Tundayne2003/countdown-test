@@ -1,4 +1,4 @@
-// server.js - Đã tối ưu hóa để tạo ảnh một khung hình, đảm bảo hoạt động trên Gmail
+// server.js - Đã được chỉnh sửa để tạo GIF động theo yêu cầu
 
 const express = require('express');
 const path = require('path');
@@ -29,13 +29,22 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 
 app.get('/api/countdown.gif', (req, res) => {
     try {
-        // Tham số 'duration' không còn cần thiết nên đã được loại bỏ
-        const { time, bg1, bg2, boxcolor, textcolor, labelcolor } = req.query;
+        // Thêm lại tham số 'duration' để kiểm soát thời lượng ảnh động
+        const { time, duration, bg1, bg2, boxcolor, textcolor, labelcolor } = req.query;
         const hexColorRegex = /^[0-9a-fA-F]{6}$/;
 
         if (!time) return res.status(400).send('Thiếu tham số "time".');
         const targetDate = parseISO(time);
         if (isNaN(targetDate.getTime())) return res.status(400).send('Định dạng "time" không hợp lệ.');
+        
+        // Xử lý duration, mặc định là 5 giây nếu không có.
+        // Giới hạn 10 giây để tránh timeout trên Vercel.
+        let gifDuration = parseInt(duration, 10);
+        if (isNaN(gifDuration) || gifDuration < 1) {
+            gifDuration = 5; 
+        } else if (gifDuration > 10) { // Giới hạn quan trọng
+            gifDuration = 10;
+        }
 
         const colors = {
             bg1:       hexColorRegex.test(bg1) ? `#${bg1}` : '#0b1226',
@@ -49,63 +58,69 @@ app.get('/api/countdown.gif', (req, res) => {
         const height = 120;
         res.setHeader('Content-Type', 'image/gif');
 
-        // Tạo ảnh GIF chỉ có một khung hình duy nhất
         const encoder = new GIFEncoder(width, height);
         encoder.createReadStream().pipe(res);
         encoder.start();
-        encoder.setRepeat(-1); // -1: không lặp (single frame)
-        encoder.setDelay(500); // Delay không quan trọng với ảnh 1 frame
+        encoder.setRepeat(0); // 0: Lặp vô hạn
+        encoder.setDelay(1000); // 1000ms = 1 giây delay giữa các khung hình
         encoder.setQuality(10);
 
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
 
-        // Tính toán thời gian và vẽ ảnh MỘT LẦN DUY NHẤT, không dùng vòng lặp
         const now = new Date();
-        let totalSecondsLeft = differenceInSeconds(targetDate, now);
-        if (totalSecondsLeft < 0) totalSecondsLeft = 0;
-
-        const timeUnits = {
-            Ngày: Math.floor(totalSecondsLeft / (3600 * 24)),
-            Giờ: Math.floor((totalSecondsLeft % (3600 * 24)) / 3600),
-            Phút: Math.floor((totalSecondsLeft % 3600) / 60),
-            Giây: totalSecondsLeft % 60,
-        };
-
-        const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        gradient.addColorStop(0, colors.bg1);
-        gradient.addColorStop(1, colors.bg2);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-
-        const boxWidth = 80;
-        const boxHeight = 80;
-        const gap = 20;
-        const totalContentWidth = (4 * boxWidth) + (3 * gap);
-        const startX = (width - totalContentWidth) / 2;
-        const startY = (height - boxHeight) / 2;
+        const initialSecondsLeft = differenceInSeconds(targetDate, now);
         
-        let currentX = startX;
+        // Sử dụng vòng lặp để tạo ra nhiều khung hình
+        const numberOfFrames = gifDuration; 
 
-        for (const [label, value] of Object.entries(timeUnits)) {
-            ctx.fillStyle = colors.box;
-            drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 10);
+        for (let i = 0; i < numberOfFrames; i++) {
+            let currentFrameSeconds = initialSecondsLeft - i;
+            if (currentFrameSeconds < 0) currentFrameSeconds = 0;
+
+            const timeUnits = {
+                Ngày: Math.floor(currentFrameSeconds / (3600 * 24)),
+                Giờ: Math.floor((currentFrameSeconds % (3600 * 24)) / 3600),
+                Phút: Math.floor((currentFrameSeconds % 3600) / 60),
+                Giây: currentFrameSeconds % 60,
+            };
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, colors.bg1);
+            gradient.addColorStop(1, colors.bg2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            const boxWidth = 80;
+            const boxHeight = 80;
+            const gap = 20;
+            const totalContentWidth = (4 * boxWidth) + (3 * gap);
+            const startX = (width - totalContentWidth) / 2;
+            const startY = (height - boxHeight) / 2;
             
-            ctx.fillStyle = colors.text;
-            ctx.font = 'bold 36px Roboto';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 10);
+            let currentX = startX;
 
-            ctx.fillStyle = colors.label;
-            ctx.font = 'normal 14px Roboto';
-            ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 25);
+            for (const [label, value] of Object.entries(timeUnits)) {
+                ctx.fillStyle = colors.box;
+                drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 10);
+                
+                ctx.fillStyle = colors.text;
+                ctx.font = 'bold 36px Roboto';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 10);
 
-            currentX += boxWidth + gap;
+                ctx.fillStyle = colors.label;
+                ctx.font = 'normal 14px Roboto';
+                ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 25);
+
+                currentX += boxWidth + gap;
+            }
+
+            // Thêm khung hình đã vẽ vào GIF
+            encoder.addFrame(ctx);
         }
 
-        // Chỉ thêm một khung hình duy nhất vào ảnh
-        encoder.addFrame(ctx);
         encoder.finish();
 
     } catch (error) {
