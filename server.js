@@ -1,23 +1,17 @@
-// server.js - Đã đổi sang font Roboto
+// server.js - Đã chuyển sang cú pháp CommonJS để tương thích Vercel
 
-import express from 'express';
-// Thêm các module cần thiết để xử lý đường dẫn file
-import path from 'path';
-import { fileURLToPath } from 'url';
-// Thêm hàm registerFont từ canvas
-import { createCanvas, registerFont } from 'canvas';
-import GIFEncoder from 'gif-encoder-2';
-import { parseISO, differenceInSeconds } from 'date-fns';
+// Sử dụng require() thay cho import
+const express = require('express');
+const path = require('path');
+const { createCanvas, registerFont } = require('canvas');
+const GIFEncoder = require('gif-encoder-2');
+const { parseISO, differenceInSeconds } = require('date-fns');
 
 const app = express();
 
-// === CÀI ĐẶT ĐƯỜNG DẪN ĐỂ TÌM FILE FONT ===
-// Cần thiết để server biết vị trí thư mục 'fonts'
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// === ĐĂNG KÝ FONT CHỮ "ROBOTO" TRƯỚC KHI SỬ DỤNG ===
-// Server sẽ load các font này vào bộ nhớ để chuẩn bị vẽ
+// === ĐĂNG KÝ FONT CHỮ TRƯỚC KHI SỬ DỤNG ===
+// Trong CommonJS, __dirname là một biến có sẵn, chỉ thẳng đến thư mục chứa file hiện tại.
+// Điều này làm cho việc tìm file font trở nên đơn giản hơn.
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Regular.ttf'), { family: 'Roboto', weight: 'normal' });
 
@@ -103,14 +97,12 @@ app.get('/api/countdown.gif', (req, res) => {
                 drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 10);
                 
                 ctx.fillStyle = colors.text;
-                // === SỬ DỤNG FONT "ROBOTO" ĐÃ ĐĂNG KÝ ===
                 ctx.font = 'bold 36px Roboto';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 10);
 
                 ctx.fillStyle = colors.label;
-                // === SỬ DỤNG FONT "ROBOTO" ĐÃ ĐĂNG KÝ ===
                 ctx.font = 'normal 14px Roboto';
                 ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 25);
 
@@ -128,4 +120,5 @@ app.get('/api/countdown.gif', (req, res) => {
     }
 });
 
-export default app;
+// Sử dụng module.exports thay cho export default
+module.exports = app;
