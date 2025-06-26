@@ -1,4 +1,4 @@
-// server.js - Đã được chỉnh sửa để tạo GIF động theo yêu cầu
+// server.js - Đã được chỉnh sửa để có nền trong suốt và chữ đen
 
 const express = require('express');
 const path = require('path');
@@ -12,6 +12,7 @@ const app = express();
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Bold.ttf'), { family: 'Roboto', weight: 'bold' });
 registerFont(path.join(__dirname, 'fonts', 'Roboto-Regular.ttf'), { family: 'Roboto', weight: 'normal' });
 
+// Hàm này không còn được sử dụng khi nền trong suốt nhưng giữ lại để có thể dùng sau
 function drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath();
     ctx.moveTo(x + radius, y);
@@ -29,8 +30,8 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 
 app.get('/api/countdown.gif', (req, res) => {
     try {
-        // Thêm lại tham số 'duration' để kiểm soát thời lượng ảnh động
-        const { time, duration, bg1, bg2, boxcolor, textcolor, labelcolor } = req.query;
+        // Loại bỏ các tham số màu không còn cần thiết
+        const { time, duration, textcolor, labelcolor } = req.query;
         const hexColorRegex = /^[0-9a-fA-F]{6}$/;
 
         if (!time) return res.status(400).send('Thiếu tham số "time".');
@@ -44,24 +45,21 @@ app.get('/api/countdown.gif', (req, res) => {
             gifDuration = 10;
         }
 
+        // Cập nhật lại màu mặc định
         const colors = {
-            bg1:       hexColorRegex.test(bg1) ? `#${bg1}` : '#0b1226',
-            bg2:       hexColorRegex.test(bg2) ? `#${bg2}` : '#1e3050',
-            box:       hexColorRegex.test(boxcolor) ? `#${boxcolor}` : '#134074',
-            text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#FFFFFF',
-            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#a9c1e1',
+            text:      hexColorRegex.test(textcolor) ? `#${textcolor}` : '#000000', // Màu số: Đen
+            label:     hexColorRegex.test(labelcolor) ? `#${labelcolor}` : '#333333', // Màu nhãn: Xám đậm
         };
 
-        // === THAY ĐỔI KÍCH THƯỚC: Thu nhỏ kích thước ảnh và các yếu tố ===
-        const width = 360;  // Giảm từ 450
-        const height = 96; // Giảm từ 120
+        const width = 360;
+        const height = 96;
         res.setHeader('Content-Type', 'image/gif');
 
         const encoder = new GIFEncoder(width, height);
         encoder.createReadStream().pipe(res);
         encoder.start();
-        encoder.setRepeat(0); // 0: Lặp vô hạn
-        encoder.setDelay(1000); // 1000ms = 1 giây delay giữa các khung hình
+        encoder.setRepeat(0);
+        encoder.setDelay(1000);
         encoder.setQuality(10);
 
         const canvas = createCanvas(width, height);
@@ -83,16 +81,12 @@ app.get('/api/countdown.gif', (req, res) => {
                 Giây: currentFrameSeconds % 60,
             };
 
-            const gradient = ctx.createLinearGradient(0, 0, 0, height);
-            gradient.addColorStop(0, colors.bg1);
-            gradient.addColorStop(1, colors.bg2);
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, width, height);
+            // === THAY ĐỔI: Xóa canvas để có nền trong suốt ===
+            ctx.clearRect(0, 0, width, height);
 
-            // Cập nhật lại kích thước và khoảng cách của các khối
-            const boxWidth = 64;    // Giảm từ 80
-            const boxHeight = 64;   // Giảm từ 80
-            const gap = 16;         // Giảm từ 20
+            const boxWidth = 64;
+            const boxHeight = 64;
+            const gap = 16;
             const totalContentWidth = (4 * boxWidth) + (3 * gap);
             const startX = (width - totalContentWidth) / 2;
             const startY = (height - boxHeight) / 2;
@@ -100,20 +94,18 @@ app.get('/api/countdown.gif', (req, res) => {
             let currentX = startX;
 
             for (const [label, value] of Object.entries(timeUnits)) {
-                ctx.fillStyle = colors.box;
-                drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 8); // Giảm bán kính bo góc
+                // === THAY ĐỔI: Không vẽ khối nền nữa ===
+                // ctx.fillStyle = colors.box;
+                // drawRoundedRect(ctx, currentX, startY, boxWidth, boxHeight, 8);
                 
                 ctx.fillStyle = colors.text;
-                // Cập nhật lại kích thước font
-                ctx.font = 'bold 28px Roboto'; // Giảm từ 36px
+                ctx.font = 'bold 28px Roboto';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                // Cập nhật lại vị trí tương đối của văn bản
                 ctx.fillText(String(value).padStart(2, '0'), currentX + boxWidth / 2, startY + boxHeight / 2 - 8);
 
                 ctx.fillStyle = colors.label;
-                // Cập nhật lại kích thước font
-                ctx.font = 'normal 12px Roboto'; // Giảm từ 14px
+                ctx.font = 'normal 12px Roboto';
                 ctx.fillText(label.toUpperCase(), currentX + boxWidth / 2, startY + boxHeight / 2 + 22);
 
                 currentX += boxWidth + gap;
